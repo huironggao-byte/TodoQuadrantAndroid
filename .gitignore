@@ -1,0 +1,10 @@
+.gradle/
+.gradle-user-home/
+.idea/
+*.iml
+build/
+local.properties
+captures/
+screenshots/
+app/build/
+.local-tools/
