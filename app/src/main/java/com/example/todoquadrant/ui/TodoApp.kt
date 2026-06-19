@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Alarm
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -68,12 +70,15 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.todoquadrant.R
 import com.example.todoquadrant.data.Quadrant
+import com.example.todoquadrant.data.ReminderMode
 import com.example.todoquadrant.data.TodoEntity
 import com.example.todoquadrant.data.TodoSource
 import com.example.todoquadrant.data.quadrant
@@ -88,11 +93,12 @@ fun TodoApp(
     onUrgentToggle: () -> Unit,
     onDueSelected: (Long?) -> Unit,
     onReminderSelected: (Long?) -> Unit,
+    onReminderModeSelected: (String) -> Unit,
     onFilterSelected: (TodoFilter) -> Unit,
     onAddClick: () -> Unit,
     onVoiceClick: () -> Unit,
     onTodoCheckedChange: (TodoEntity, Boolean) -> Unit,
-    onTodoUpdate: (TodoEntity, String, String, Boolean, Boolean, Long?, Long?) -> Unit,
+    onTodoUpdate: (TodoEntity, String, String, Boolean, Boolean, Long?, Long?, String) -> Unit,
     onTodoDelete: (TodoEntity) -> Unit,
 ) {
     var editingTodo by remember { mutableStateOf<TodoEntity?>(null) }
@@ -100,7 +106,12 @@ fun TodoApp(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("四象限待办", fontWeight = FontWeight.SemiBold) },
+                title = {
+                    Text(
+                        stringResource(R.string.app_name),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -124,6 +135,7 @@ fun TodoApp(
                     onUrgentToggle = onUrgentToggle,
                     onDueSelected = onDueSelected,
                     onReminderSelected = onReminderSelected,
+                    onReminderModeSelected = onReminderModeSelected,
                     onAddClick = onAddClick,
                     onVoiceClick = onVoiceClick,
                 )
@@ -155,8 +167,8 @@ fun TodoApp(
         EditTodoDialog(
             todo = todo,
             onDismiss = { editingTodo = null },
-            onSave = { target, title, note, important, urgent, dueAt, reminderAt ->
-                onTodoUpdate(target, title, note, important, urgent, dueAt, reminderAt)
+            onSave = { target, title, note, important, urgent, dueAt, reminderAt, reminderMode ->
+                onTodoUpdate(target, title, note, important, urgent, dueAt, reminderAt, reminderMode)
                 editingTodo = null
             },
         )
@@ -172,6 +184,7 @@ private fun QuickEntryPanel(
     onUrgentToggle: () -> Unit,
     onDueSelected: (Long?) -> Unit,
     onReminderSelected: (Long?) -> Unit,
+    onReminderModeSelected: (String) -> Unit,
     onAddClick: () -> Unit,
     onVoiceClick: () -> Unit,
 ) {
@@ -200,7 +213,7 @@ private fun QuickEntryPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(titleFocusRequester),
-                placeholder = { Text("写下新的待办事项") },
+                placeholder = { Text(stringResource(R.string.quick_entry_placeholder)) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     if (state.titleDraft.isNotBlank()) {
@@ -223,7 +236,7 @@ private fun QuickEntryPanel(
                 ) {
                     Icon(Icons.Rounded.Keyboard, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("键盘听写")
+                    Text(stringResource(R.string.keyboard_dictation))
                 }
                 OutlinedButton(
                     onClick = onVoiceClick,
@@ -231,7 +244,7 @@ private fun QuickEntryPanel(
                 ) {
                     Icon(Icons.Rounded.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("系统语音")
+                    Text(stringResource(R.string.system_voice))
                 }
             }
 
@@ -239,7 +252,7 @@ private fun QuickEntryPanel(
                 value = state.noteDraft,
                 onValueChange = onNoteChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("备注，可选") },
+                placeholder = { Text(stringResource(R.string.note_placeholder)) },
                 maxLines = 2,
             )
 
@@ -250,7 +263,7 @@ private fun QuickEntryPanel(
                 FilterChip(
                     selected = state.isImportantDraft,
                     onClick = onImportantToggle,
-                    label = { Text("重要") },
+                    label = { Text(stringResource(R.string.important)) },
                     leadingIcon = {
                         Icon(
                             Icons.Rounded.Star,
@@ -262,7 +275,7 @@ private fun QuickEntryPanel(
                 FilterChip(
                     selected = state.isUrgentDraft,
                     onClick = onUrgentToggle,
-                    label = { Text("紧急") },
+                    label = { Text(stringResource(R.string.urgent)) },
                     leadingIcon = {
                         Icon(
                             Icons.Rounded.PriorityHigh,
@@ -274,7 +287,9 @@ private fun QuickEntryPanel(
             }
 
             DateTimePickButton(
-                label = state.dueAtDraft?.let { "截止 ${TimeText.format(it)}" } ?: "截止时间",
+                label = state.dueAtDraft?.let {
+                    stringResource(R.string.due_time_value, TimeText.format(it))
+                } ?: stringResource(R.string.due_time),
                 icon = Icons.Rounded.Event,
                 value = state.dueAtDraft,
                 onSelected = onDueSelected,
@@ -282,11 +297,18 @@ private fun QuickEntryPanel(
             )
 
             DateTimePickButton(
-                label = state.reminderAtDraft?.let { "提醒 ${TimeText.format(it)}" } ?: "提醒时间",
+                label = state.reminderAtDraft?.let {
+                    stringResource(R.string.reminder_time_value, TimeText.format(it))
+                } ?: stringResource(R.string.reminder_time),
                 icon = Icons.Rounded.Notifications,
                 value = state.reminderAtDraft,
                 onSelected = onReminderSelected,
                 onClear = { onReminderSelected(null) },
+            )
+
+            ReminderModeSelector(
+                selected = state.reminderModeDraft,
+                onSelected = onReminderModeSelected,
             )
 
             Button(
@@ -297,11 +319,61 @@ private fun QuickEntryPanel(
             ) {
                 Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("添加")
+                Text(stringResource(R.string.add_todo))
             }
         }
     }
 }
+
+@Composable
+private fun ReminderModeSelector(
+    selected: String,
+    onSelected: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.reminder_mode),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ReminderMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = selected == mode,
+                    onClick = { onSelected(mode) },
+                    label = { Text(reminderModeLabel(mode)) },
+                    leadingIcon = {
+                        Icon(
+                            reminderModeIcon(mode),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun reminderModeLabel(mode: String): String =
+    when (mode) {
+        ReminderMode.VIBRATE -> stringResource(R.string.reminder_mode_vibrate)
+        ReminderMode.ALARM -> stringResource(R.string.reminder_mode_alarm)
+        ReminderMode.ALARM_VIBRATE -> stringResource(R.string.reminder_mode_alarm_vibrate)
+        else -> stringResource(R.string.reminder_mode_notification)
+    }
+
+private fun reminderModeIcon(mode: String): ImageVector =
+    when (mode) {
+        ReminderMode.VIBRATE -> Icons.Rounded.Vibration
+        ReminderMode.ALARM -> Icons.Rounded.Alarm
+        ReminderMode.ALARM_VIBRATE -> Icons.Rounded.Alarm
+        else -> Icons.Rounded.Notifications
+    }
 
 @Composable
 private fun DateTimePickButton(
@@ -334,7 +406,7 @@ private fun DateTimePickButton(
 
         if (value != null) {
             IconButton(onClick = onClear) {
-                Icon(Icons.Rounded.Close, contentDescription = "清除时间")
+                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.clear_time))
             }
         }
     }
@@ -353,7 +425,7 @@ private fun FilterRow(
             FilterChip(
                 selected = selected == filter,
                 onClick = { onSelected(filter) },
-                label = { Text(filter.label) },
+                label = { Text(filterLabel(filter)) },
                 leadingIcon = if (selected == filter) {
                     {
                         Icon(
@@ -376,11 +448,20 @@ private fun ProgressLine(todos: List<TodoEntity>) {
     val completedCount = todos.count { it.isCompleted }
 
     Text(
-        text = "未完成 $activeCount  ·  已完成 $completedCount",
+        text = stringResource(R.string.progress_counts, activeCount, completedCount),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.bodyMedium,
     )
 }
+
+@Composable
+private fun filterLabel(filter: TodoFilter): String =
+    when (filter) {
+        TodoFilter.Active -> stringResource(R.string.filter_active)
+        TodoFilter.Today -> stringResource(R.string.filter_today)
+        TodoFilter.Reminders -> stringResource(R.string.filter_reminders)
+        TodoFilter.Completed -> stringResource(R.string.filter_completed)
+    }
 
 @Composable
 private fun QuadrantBoard(
@@ -454,7 +535,7 @@ private fun QuadrantPanel(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = quadrant.title,
+                    text = quadrantLabel(quadrant),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -474,7 +555,7 @@ private fun QuadrantPanel(
 
             if (todos.isEmpty()) {
                 Text(
-                    text = "暂无事项",
+                    text = stringResource(R.string.empty_todos),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -539,20 +620,29 @@ private fun TodoRow(
         }
 
         IconButton(onClick = onEdit) {
-            Icon(Icons.Rounded.Edit, contentDescription = "编辑待办")
+            Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit_todo))
         }
 
         IconButton(onClick = onDelete) {
-            Icon(Icons.Rounded.Delete, contentDescription = "删除待办")
+            Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.delete_todo))
         }
     }
 }
 
 @Composable
+private fun quadrantLabel(quadrant: Quadrant): String =
+    when (quadrant) {
+        Quadrant.ImportantUrgent -> stringResource(R.string.quadrant_important_urgent)
+        Quadrant.ImportantNotUrgent -> stringResource(R.string.quadrant_important_not_urgent)
+        Quadrant.UrgentNotImportant -> stringResource(R.string.quadrant_urgent_not_important)
+        Quadrant.NotImportantNotUrgent -> stringResource(R.string.quadrant_not_important_not_urgent)
+    }
+
+@Composable
 private fun EditTodoDialog(
     todo: TodoEntity,
     onDismiss: () -> Unit,
-    onSave: (TodoEntity, String, String, Boolean, Boolean, Long?, Long?) -> Unit,
+    onSave: (TodoEntity, String, String, Boolean, Boolean, Long?, Long?, String) -> Unit,
 ) {
     var title by remember(todo.id) { mutableStateOf(todo.title) }
     var note by remember(todo.id) { mutableStateOf(todo.note.orEmpty()) }
@@ -560,10 +650,11 @@ private fun EditTodoDialog(
     var isUrgent by remember(todo.id) { mutableStateOf(todo.isUrgent) }
     var dueAt by remember(todo.id) { mutableStateOf(todo.dueAt) }
     var reminderAt by remember(todo.id) { mutableStateOf(todo.reminderAt) }
+    var reminderMode by remember(todo.id) { mutableStateOf(todo.reminderMode) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("编辑待办") },
+        title = { Text(stringResource(R.string.edit_todo)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -573,14 +664,14 @@ private fun EditTodoDialog(
                     value = title,
                     onValueChange = { title = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("事项") },
+                    label = { Text(stringResource(R.string.todo_title)) },
                     maxLines = 3,
                 )
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("备注") },
+                    label = { Text(stringResource(R.string.note)) },
                     maxLines = 3,
                 )
                 Row(
@@ -590,7 +681,7 @@ private fun EditTodoDialog(
                     FilterChip(
                         selected = isImportant,
                         onClick = { isImportant = !isImportant },
-                        label = { Text("重要") },
+                        label = { Text(stringResource(R.string.important)) },
                         leadingIcon = {
                             Icon(
                                 Icons.Rounded.Star,
@@ -602,7 +693,7 @@ private fun EditTodoDialog(
                     FilterChip(
                         selected = isUrgent,
                         onClick = { isUrgent = !isUrgent },
-                        label = { Text("紧急") },
+                        label = { Text(stringResource(R.string.urgent)) },
                         leadingIcon = {
                             Icon(
                                 Icons.Rounded.PriorityHigh,
@@ -613,35 +704,43 @@ private fun EditTodoDialog(
                     )
                 }
                 DateTimePickButton(
-                    label = dueAt?.let { "截止 ${TimeText.format(it)}" } ?: "截止时间",
+                    label = dueAt?.let {
+                        stringResource(R.string.due_time_value, TimeText.format(it))
+                    } ?: stringResource(R.string.due_time),
                     icon = Icons.Rounded.Event,
                     value = dueAt,
                     onSelected = { dueAt = it },
                     onClear = { dueAt = null },
                 )
                 DateTimePickButton(
-                    label = reminderAt?.let { "提醒 ${TimeText.format(it)}" } ?: "提醒时间",
+                    label = reminderAt?.let {
+                        stringResource(R.string.reminder_time_value, TimeText.format(it))
+                    } ?: stringResource(R.string.reminder_time),
                     icon = Icons.Rounded.Notifications,
                     value = reminderAt,
                     onSelected = { reminderAt = it },
                     onClear = { reminderAt = null },
+                )
+                ReminderModeSelector(
+                    selected = reminderMode,
+                    onSelected = { reminderMode = it },
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(todo, title, note, isImportant, isUrgent, dueAt, reminderAt)
+                    onSave(todo, title, note, isImportant, isUrgent, dueAt, reminderAt, reminderMode)
                 },
                 enabled = title.isNotBlank(),
                 shape = RoundedCornerShape(8.dp),
             ) {
-                Text("保存")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.cancel))
             }
         },
     )
@@ -659,11 +758,15 @@ private fun visibleTodos(todos: List<TodoEntity>, filter: TodoFilter): List<Todo
         TodoFilter.Completed -> todos.filter { it.isCompleted }
     }
 
+@Composable
 private fun TodoEntity.detailsText(): String {
     val details = buildList {
-        dueAt?.let { add("截止 ${TimeText.format(it)}") }
-        reminderAt?.let { add("提醒 ${TimeText.format(it)}") }
-        if (source == TodoSource.VOICE) add("语音")
+        dueAt?.let { add(stringResource(R.string.due_time_value, TimeText.format(it))) }
+        reminderAt?.let {
+            add(stringResource(R.string.reminder_time_value, TimeText.format(it)))
+            add(reminderModeLabel(reminderMode))
+        }
+        if (source == TodoSource.VOICE) add(stringResource(R.string.source_voice))
     }
     return details.joinToString(" · ")
 }

@@ -37,6 +37,24 @@ interface TodoDao {
     )
     suspend fun pendingReminders(now: Long): List<TodoEntity>
 
+    @Query(
+        """
+        SELECT * FROM todos
+        WHERE is_completed = 0
+        ORDER BY
+            is_important DESC,
+            is_urgent DESC,
+            CASE WHEN reminder_at IS NULL THEN 1 ELSE 0 END ASC,
+            reminder_at ASC,
+            created_at DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun activeWidgetTodos(limit: Int): List<TodoEntity>
+
+    @Query("SELECT COUNT(*) FROM todos WHERE is_completed = 0")
+    suspend fun activeCount(): Int
+
     @Insert
     suspend fun insert(todo: TodoEntity): Long
 

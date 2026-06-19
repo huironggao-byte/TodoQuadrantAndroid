@@ -14,6 +14,7 @@ class TodoRepository(
         isUrgent: Boolean,
         dueAt: Long?,
         reminderAt: Long?,
+        reminderMode: String,
         source: String,
     ): TodoEntity {
         val now = System.currentTimeMillis()
@@ -25,6 +26,7 @@ class TodoRepository(
                 isUrgent = isUrgent,
                 dueAt = dueAt,
                 reminderAt = reminderAt,
+                reminderMode = reminderMode,
                 source = source,
                 createdAt = now,
                 updatedAt = now,

@@ -25,6 +25,8 @@ data class TodoEntity(
     val dueAt: Long? = null,
     @ColumnInfo(name = "reminder_at")
     val reminderAt: Long? = null,
+    @ColumnInfo(name = "reminder_mode")
+    val reminderMode: String = ReminderMode.NOTIFICATION,
     @ColumnInfo(name = "is_completed")
     val isCompleted: Boolean = false,
     val source: String = TodoSource.TEXT,
@@ -58,4 +60,13 @@ enum class Quadrant(
 object TodoSource {
     const val TEXT = "TEXT"
     const val VOICE = "VOICE"
+}
+
+object ReminderMode {
+    const val NOTIFICATION = "NOTIFICATION"
+    const val VIBRATE = "VIBRATE"
+    const val ALARM = "ALARM"
+    const val ALARM_VIBRATE = "ALARM_VIBRATE"
+
+    val entries = listOf(NOTIFICATION, VIBRATE, ALARM, ALARM_VIBRATE)
 }

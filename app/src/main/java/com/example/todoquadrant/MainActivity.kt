@@ -21,6 +21,7 @@ import com.example.todoquadrant.reminder.ReminderScheduler
 import com.example.todoquadrant.ui.TodoApp
 import com.example.todoquadrant.ui.TodoViewModel
 import com.example.todoquadrant.ui.theme.TodoQuadrantTheme
+import com.example.todoquadrant.widget.TodoWidgetProvider
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -39,10 +40,10 @@ class MainActivity : ComponentActivity() {
             ?.trim()
 
         if (text.isNullOrBlank()) {
-            Toast.makeText(this, "没有识别到待办内容", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.speech_no_result), Toast.LENGTH_SHORT).show()
         } else {
             viewModel.fillTitleFromVoice(text)
-            Toast.makeText(this, "已填入语音结果，请确认后添加", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.speech_result_filled), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -52,14 +53,18 @@ class MainActivity : ComponentActivity() {
         if (granted) {
             launchSpeechRecognizer()
         } else {
-            Toast.makeText(this, "需要麦克风权限才能语音录入", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.audio_permission_needed), Toast.LENGTH_SHORT).show()
         }
     }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        val message = if (granted) "提醒通知已开启" else "未开启通知，提醒可能不会弹出"
+        val message = if (granted) {
+            getString(R.string.notification_permission_granted)
+        } else {
+            getString(R.string.notification_permission_denied)
+        }
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
@@ -73,8 +78,13 @@ class MainActivity : ComponentActivity() {
         val scheduler = ReminderScheduler(applicationContext)
         viewModel = ViewModelProvider(
             this,
-            TodoViewModel.factory(repository, scheduler),
+            TodoViewModel.factory(
+                repository = repository,
+                reminderScheduler = scheduler,
+                onTodosChanged = { TodoWidgetProvider.updateAll(applicationContext) },
+            ),
         )[TodoViewModel::class.java]
+        TodoWidgetProvider.updateAll(applicationContext)
 
         setContent {
             TodoQuadrantTheme {
@@ -88,6 +98,7 @@ class MainActivity : ComponentActivity() {
                     onUrgentToggle = viewModel::toggleUrgent,
                     onDueSelected = viewModel::setDueAt,
                     onReminderSelected = viewModel::setReminderAt,
+                    onReminderModeSelected = viewModel::setReminderMode,
                     onFilterSelected = viewModel::selectFilter,
                     onAddClick = {
                         if (state.reminderAtDraft != null) {
@@ -97,11 +108,20 @@ class MainActivity : ComponentActivity() {
                     },
                     onVoiceClick = ::startVoiceInput,
                     onTodoCheckedChange = viewModel::toggleCompleted,
-                    onTodoUpdate = { todo, title, note, important, urgent, dueAt, reminderAt ->
+                    onTodoUpdate = { todo, title, note, important, urgent, dueAt, reminderAt, reminderMode ->
                         if (reminderAt != null) {
                             maybeRequestNotificationPermission()
                         }
-                        viewModel.updateTodo(todo, title, note, important, urgent, dueAt, reminderAt)
+                        viewModel.updateTodo(
+                            todo = todo,
+                            title = title,
+                            note = note,
+                            isImportant = important,
+                            isUrgent = urgent,
+                            dueAt = dueAt,
+                            reminderAt = reminderAt,
+                            reminderMode = reminderMode,
+                        )
                     },
                     onTodoDelete = viewModel::delete,
                 )
@@ -126,13 +146,13 @@ class MainActivity : ComponentActivity() {
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
             )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "说出一条待办事项")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speech_prompt))
         }
 
         try {
             speechLauncher.launch(intent)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "系统语音不可用，请使用键盘听写", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.speech_unavailable), Toast.LENGTH_SHORT).show()
         }
     }
 

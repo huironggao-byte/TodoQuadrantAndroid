@@ -3,6 +3,7 @@ package com.example.todoquadrant.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.todoquadrant.data.ReminderMode
 import com.example.todoquadrant.data.TodoEntity
 import com.example.todoquadrant.data.TodoRepository
 import com.example.todoquadrant.data.TodoSource
@@ -21,6 +22,7 @@ data class TodoUiState(
     val isUrgentDraft: Boolean = false,
     val dueAtDraft: Long? = null,
     val reminderAtDraft: Long? = null,
+    val reminderModeDraft: String = ReminderMode.NOTIFICATION,
     val sourceDraft: String = TodoSource.TEXT,
     val filter: TodoFilter = TodoFilter.Active,
 )
@@ -35,6 +37,7 @@ enum class TodoFilter(val label: String) {
 class TodoViewModel(
     private val repository: TodoRepository,
     private val reminderScheduler: ReminderScheduler,
+    private val onTodosChanged: () -> Unit,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TodoUiState())
     val uiState: StateFlow<TodoUiState> = _uiState.asStateFlow()
@@ -71,6 +74,13 @@ class TodoViewModel(
         _uiState.update { it.copy(reminderAtDraft = value) }
     }
 
+    fun setReminderMode(value: String) {
+        if (value !in ReminderMode.entries) {
+            return
+        }
+        _uiState.update { it.copy(reminderModeDraft = value) }
+    }
+
     fun selectFilter(filter: TodoFilter) {
         _uiState.update { it.copy(filter = filter) }
     }
@@ -90,15 +100,18 @@ class TodoViewModel(
                 isUrgent = state.isUrgentDraft,
                 dueAt = state.dueAtDraft,
                 reminderAt = state.reminderAtDraft,
+                reminderMode = state.reminderModeDraft,
                 source = source ?: state.sourceDraft,
             )
             reminderScheduler.schedule(todo)
+            onTodosChanged()
             _uiState.update {
                 it.copy(
                     titleDraft = "",
                     noteDraft = "",
                     dueAtDraft = null,
                     reminderAtDraft = null,
+                    reminderModeDraft = ReminderMode.NOTIFICATION,
                     sourceDraft = TodoSource.TEXT,
                 )
             }
@@ -117,6 +130,7 @@ class TodoViewModel(
         viewModelScope.launch {
             val updated = repository.toggleCompleted(todo, completed)
             reminderScheduler.schedule(updated)
+            onTodosChanged()
         }
     }
 
@@ -128,6 +142,7 @@ class TodoViewModel(
         isUrgent: Boolean,
         dueAt: Long?,
         reminderAt: Long?,
+        reminderMode: String,
     ) {
         val cleanTitle = title.trim()
         if (cleanTitle.isBlank()) {
@@ -143,9 +158,11 @@ class TodoViewModel(
                     isUrgent = isUrgent,
                     dueAt = dueAt,
                     reminderAt = reminderAt,
+                    reminderMode = reminderMode,
                 ),
             )
             reminderScheduler.schedule(updated)
+            onTodosChanged()
         }
     }
 
@@ -153,6 +170,7 @@ class TodoViewModel(
         viewModelScope.launch {
             repository.delete(todo)
             reminderScheduler.cancel(todo.id)
+            onTodosChanged()
         }
     }
 
@@ -160,10 +178,11 @@ class TodoViewModel(
         fun factory(
             repository: TodoRepository,
             reminderScheduler: ReminderScheduler,
+            onTodosChanged: () -> Unit,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return TodoViewModel(repository, reminderScheduler) as T
+                return TodoViewModel(repository, reminderScheduler, onTodosChanged) as T
             }
         }
     }

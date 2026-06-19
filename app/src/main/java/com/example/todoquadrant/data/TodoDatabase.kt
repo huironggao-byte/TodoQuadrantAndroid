@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [TodoEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class TodoDatabase : RoomDatabase() {
@@ -23,7 +25,18 @@ abstract class TodoDatabase : RoomDatabase() {
                     context.applicationContext,
                     TodoDatabase::class.java,
                     "todo_quadrant.db",
-                ).build().also { instance = it }
+                )
+                    .addMigrations(MIGRATION_1_2)
+                    .build()
+                    .also { instance = it }
             }
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE todos ADD COLUMN reminder_mode TEXT NOT NULL DEFAULT 'NOTIFICATION'",
+                )
+            }
+        }
     }
 }
