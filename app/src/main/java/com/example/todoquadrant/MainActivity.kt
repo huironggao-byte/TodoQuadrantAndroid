@@ -41,11 +41,8 @@ class MainActivity : ComponentActivity() {
         if (text.isNullOrBlank()) {
             Toast.makeText(this, "没有识别到待办内容", Toast.LENGTH_SHORT).show()
         } else {
-            if (viewModel.uiState.value.reminderAtDraft != null) {
-                maybeRequestNotificationPermission()
-            }
-            viewModel.addVoiceTodo(text)
-            Toast.makeText(this, "已添加语音待办", Toast.LENGTH_SHORT).show()
+            viewModel.fillTitleFromVoice(text)
+            Toast.makeText(this, "已填入语音结果，请确认后添加", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -135,7 +132,7 @@ class MainActivity : ComponentActivity() {
         try {
             speechLauncher.launch(intent)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "当前设备没有可用的语音识别服务", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "系统语音不可用，请使用键盘听写", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -21,6 +21,7 @@ data class TodoUiState(
     val isUrgentDraft: Boolean = false,
     val dueAtDraft: Long? = null,
     val reminderAtDraft: Long? = null,
+    val sourceDraft: String = TodoSource.TEXT,
     val filter: TodoFilter = TodoFilter.Active,
 )
 
@@ -47,7 +48,7 @@ class TodoViewModel(
     }
 
     fun updateTitle(value: String) {
-        _uiState.update { it.copy(titleDraft = value) }
+        _uiState.update { it.copy(titleDraft = value, sourceDraft = TodoSource.TEXT) }
     }
 
     fun updateNote(value: String) {
@@ -74,7 +75,7 @@ class TodoViewModel(
         _uiState.update { it.copy(filter = filter) }
     }
 
-    fun addDraft(source: String = TodoSource.TEXT) {
+    fun addDraft(source: String? = null) {
         val state = _uiState.value
         val title = state.titleDraft.trim()
         if (title.isBlank()) {
@@ -89,7 +90,7 @@ class TodoViewModel(
                 isUrgent = state.isUrgentDraft,
                 dueAt = state.dueAtDraft,
                 reminderAt = state.reminderAtDraft,
-                source = source,
+                source = source ?: state.sourceDraft,
             )
             reminderScheduler.schedule(todo)
             _uiState.update {
@@ -98,18 +99,18 @@ class TodoViewModel(
                     noteDraft = "",
                     dueAtDraft = null,
                     reminderAtDraft = null,
+                    sourceDraft = TodoSource.TEXT,
                 )
             }
         }
     }
 
-    fun addVoiceTodo(text: String) {
+    fun fillTitleFromVoice(text: String) {
         val cleanText = text.trim()
         if (cleanText.isBlank()) {
             return
         }
-        _uiState.update { it.copy(titleDraft = cleanText) }
-        addDraft(TodoSource.VOICE)
+        _uiState.update { it.copy(titleDraft = cleanText, sourceDraft = TodoSource.VOICE) }
     }
 
     fun toggleCompleted(todo: TodoEntity, completed: Boolean) {

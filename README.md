@@ -3,7 +3,7 @@
 这是一个本地离线优先的 Android 待办应用工程，核心功能包括：
 
 - 文本录入待办
-- 系统语音识别直接录入待办
+- 键盘听写或系统语音识别录入待办
 - 设置截止时间和提醒时间
 - 勾选完成、删除待办
 - 按“重要/紧急”自动归入四象限
@@ -75,30 +75,28 @@ GRADLE_USER_HOME="$PWD/.gradle-user-home" \
 "$PWD/.local-tools/gradle/gradle-9.6.0/bin/gradle" assembleDebug
 ```
 
-启动本地 Android 模拟器：
+启动可见的本地 Android 模拟器：
 
 ```bash
 ANDROID_HOME="$PWD/.local-tools/android-sdk" \
-ANDROID_AVD_HOME="$PWD/.local-tools/avd" \
 "$PWD/.local-tools/android-sdk/emulator/emulator" \
-  -avd TodoQuadrantApi36 \
-  -no-window \
+  @TodoQuadrantApi36 \
   -no-audio \
-  -no-boot-anim \
-  -gpu swiftshader_indirect
+  -gpu host \
+  -no-snapshot-load
 ```
 
-另开一个终端，等待模拟器启动、安装并启动 App：
+另开一个终端，等待模拟器启动、安装并启动 App。如果 `adb devices` 显示多个模拟器，请把下面命令里的 `emulator-5556` 改成你看到的设备 id。
 
 ```bash
 ANDROID_HOME="$PWD/.local-tools/android-sdk" \
-"$PWD/.local-tools/android-sdk/platform-tools/adb" wait-for-device
+"$PWD/.local-tools/android-sdk/platform-tools/adb" devices
 
 ANDROID_HOME="$PWD/.local-tools/android-sdk" \
-"$PWD/.local-tools/android-sdk/platform-tools/adb" install -r app/build/outputs/apk/debug/app-debug.apk
+"$PWD/.local-tools/android-sdk/platform-tools/adb" -s emulator-5556 install -r app/build/outputs/apk/debug/app-debug.apk
 
 ANDROID_HOME="$PWD/.local-tools/android-sdk" \
-"$PWD/.local-tools/android-sdk/platform-tools/adb" shell am start -n com.example.todoquadrant/.MainActivity
+"$PWD/.local-tools/android-sdk/platform-tools/adb" -s emulator-5556 shell am start -n com.example.todoquadrant/.MainActivity
 ```
 
 截图：
@@ -124,6 +122,33 @@ ANDROID_HOME="$PWD/.local-tools/android-sdk" \
 - App 能启动并显示四象限首页。
 - 文本待办能添加到“重要不紧急”象限。
 - 勾选完成后，计数从“未完成 1 / 已完成 0”更新为“未完成 0 / 已完成 1”。
+
+## 语音输入建议
+
+v0.2.0 提供两个入口：
+
+- `键盘听写`：推荐在真机上使用。它会聚焦待办标题并打开当前输入法，你可以使用 Typeless、Wispr Flow、Gboard、Samsung Keyboard 或手机厂商输入法自带的麦克风听写。
+- `系统语音`：调用 Android 系统语音识别服务。这个入口通常会落到 Google、厂商或设备默认语音识别服务上，模拟器里经常不可用。
+
+真机测试时，如果你想用 Typeless 或其他第三方语音输入，请先在手机系统里把它启用为输入法，然后在 App 里点 `键盘听写`。
+
+v0.2.0 还改进了添加体验：
+
+- 语音识别结果会先填入标题，不会立刻添加。
+- `添加` 按钮变成全宽按钮，更容易点击。
+- 输入键盘的完成/回车动作也可以直接添加待办。
+
+## 真机安装 APK
+
+Debug APK 位于：
+
+```text
+/Users/gaohuirong/Documents/Codex/TodoQuadrantAndroid/app/build/outputs/apk/debug/app-debug.apk
+```
+
+把这个文件发送到安卓手机后，手机上打开它并允许“安装未知来源应用”即可安装测试。
+
+如果通过 GitHub Release 发布，把这个 APK 作为 v0.2.0 Release 附件上传，手机浏览器打开 Release 页面即可下载。
 
 ## 权限说明
 

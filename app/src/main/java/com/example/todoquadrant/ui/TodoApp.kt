@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PriorityHigh
@@ -61,7 +64,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -167,6 +175,15 @@ private fun QuickEntryPanel(
     onAddClick: () -> Unit,
     onVoiceClick: () -> Unit,
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val titleFocusRequester = remember { FocusRequester() }
+    val addDraft = {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+        onAddClick()
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -180,15 +197,43 @@ private fun QuickEntryPanel(
             OutlinedTextField(
                 value = state.titleDraft,
                 onValueChange = onTitleChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(titleFocusRequester),
                 placeholder = { Text("写下新的待办事项") },
-                trailingIcon = {
-                    IconButton(onClick = onVoiceClick) {
-                        Icon(Icons.Rounded.Mic, contentDescription = "语音录入")
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    if (state.titleDraft.isNotBlank()) {
+                        addDraft()
                     }
-                },
+                }),
                 maxLines = 3,
             )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        titleFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                ) {
+                    Icon(Icons.Rounded.Keyboard, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("键盘听写")
+                }
+                OutlinedButton(
+                    onClick = onVoiceClick,
+                    shape = RoundedCornerShape(8.dp),
+                ) {
+                    Icon(Icons.Rounded.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("系统语音")
+                }
+            }
 
             OutlinedTextField(
                 value = state.noteDraft,
@@ -244,20 +289,15 @@ private fun QuickEntryPanel(
                 onClear = { onReminderSelected(null) },
             )
 
-            Row(
+            Button(
+                onClick = addDraft,
+                enabled = state.titleDraft.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
+                shape = RoundedCornerShape(8.dp),
             ) {
-                Button(
-                    onClick = onAddClick,
-                    enabled = state.titleDraft.isNotBlank(),
-                    shape = RoundedCornerShape(8.dp),
-                ) {
-                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("添加")
-                }
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("添加")
             }
         }
     }
